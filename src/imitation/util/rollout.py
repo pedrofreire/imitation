@@ -279,11 +279,7 @@ def generate_trajectories(policy,
   Returns:
     Sequence of `Trajectory` named tuples.
   """
-  if isinstance(policy, BaseRLModel):
-    get_action = policy.predict
-    policy.set_env(venv)
-  else:
-    get_action = functools.partial(get_action_policy, policy)
+  get_action = policy.predict
 
   # Collect rollout tuples.
   trajectories = []
@@ -298,9 +294,12 @@ def generate_trajectories(policy,
     # really big).
     trajectories_accum.add_step(dict(obs=ob), env_idx)
 
+  state = None
   while not sample_until(trajectories):
-    acts, _ = get_action(obs, deterministic=deterministic_policy)
+    acts, state = get_action(obs, state=state, deterministic=deterministic_policy)
     obs, rews, dones, infos = venv.step(acts)
+    if dones[0]:
+        state = None
 
     new_trajs = trajectories_accum.add_steps_and_auto_finish(
       acts, obs, rews, dones, infos)
